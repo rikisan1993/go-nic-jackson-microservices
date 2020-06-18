@@ -1,31 +1,34 @@
 package main
 
 import (
-	"fmt"
-	"io/ioutil"
+	"log"
 	"net/http"
+	"os"
+	"time"
+
+	handler "github.com/rikisan1993/go-nic-jackson-microservices/handlers"
 )
 
 func main() {
+	logger := log.New(os.Stdout, "dang", log.LstdFlags|log.Lshortfile)
+	hello := handler.NewHello(logger)
+	goodbye := handler.NewGoodbye(logger)
 
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		data, err := ioutil.ReadAll(r.Body)
-		if err != nil {
-			http.Error(w, "oops", http.StatusBadRequest)
-			return
-		}
-		fmt.Fprintf(w, "Hello %s\n", data)
-	})
+	serveMux := http.NewServeMux()
+	serveMux.Handle("/", hello)
+	serveMux.Handle("/goodbye", goodbye)
 
-	http.HandleFunc("/goodbye", func(w http.ResponseWriter, r *http.Request) {
-		data, err := ioutil.ReadAll(r.Body)
-		if err != nil {
-			http.Error(w, "Oops", http.StatusBadRequest)
-			return
-		}
+	server := &http.Server{
+		Addr:         ":9090",
+		Handler:      serveMux,
+		ReadTimeout:  5 * time.Second,
+		WriteTimeout: 5 * time.Second,
+		IdleTimeout:  50 * time.Second,
+	}
 
-		fmt.Fprintf(w, "Goodbye %s\n", data)
-	})
+	err := server.ListenAndServe()
 
-	http.ListenAndServe(":9090", nil)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
