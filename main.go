@@ -1,9 +1,11 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
 	"time"
 
 	handler "github.com/rikisan1993/go-nic-jackson-microservices/handlers"
@@ -26,9 +28,22 @@ func main() {
 		IdleTimeout:  50 * time.Second,
 	}
 
-	err := server.ListenAndServe()
+	go func() {
+		err := server.ListenAndServe()
 
-	if err != nil {
-		log.Fatal(err)
-	}
+		if err != nil {
+			logger.Fatal(err)
+		}
+	}()
+
+	sigChan := make(chan os.Signal)
+	signal.Notify(sigChan, os.Interrupt)
+	signal.Notify(sigChan, os.Kill)
+
+	sig := <-sigChan
+	logger.Printf("Receive %s, gracefully shutdown", sig)
+
+	context, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	server.Shutdown(context)
 }
